@@ -43,20 +43,18 @@ Then update the scanner/skill until the new case passes without breaking the old
 suite:
 
 ```bash
-python3 evals/run_adversarial.py
 python3 evals/build_shared_benchmark.py
-python3 evals/build_shared_benchmark.py --check
-python3 evals/check_taboo_parity.py
-skill-benchmark validate evals/shared-benchmark.json --strict-leakage
+python3 evals/check.py
 ```
 
 If you touched `SKILL.md`, `presets/`, or `references/`, run
-`evals/run_behavioral.sh tune`. Keep new tuning cases in `tune`; reserve
+`python3 evals/check.py --behavioral tune`. Keep new tuning cases in `tune`; reserve
 `holdout` for reporting and `holdback` for final confirmation.
 
 ## Run Locally
 
-The behavioral layer needs local model credentials for `claude -p`.
+The behavioral layer uses the local Codex runtime with `gpt-5.6-luna` for both
+generation and judging. It does not call Claude.
 
 ```bash
 uv tool install git+https://github.com/adewale/skill-eval-harness.git
@@ -65,6 +63,25 @@ skill-benchmark validate evals/shared-benchmark.json --strict-leakage
 
 evals/run_behavioral.sh tune
 ```
+
+During repeated optimization, cache only content-addressed successful results:
+
+```bash
+UNSLOP_BEHAVIORAL_CACHE_MODE=read-write \
+UNSLOP_BEHAVIORAL_CACHE_IDENTITY='provider/model/version' \
+evals/run_behavioral.sh tune
+```
+
+The unchanged `without_skill` generation and judge prompts are reused; changed
+candidate outputs miss automatically. Final acceptance must bypass every cache:
+
+```bash
+evals/run_behavioral.sh tune --uncached
+```
+
+The provider and model are pinned inside `run_behavioral.sh`, so environment
+variables cannot silently change an acceptance run. Direct experiments can use
+`run_local.py --model MODEL`, but they are not the canonical behavioral gate.
 
 Notes:
 

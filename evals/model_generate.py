@@ -36,12 +36,17 @@ process, so the climb loop aborts the round honestly instead of blocking
 forever.
 """
 
+from __future__ import annotations
+
 import argparse
+from functools import lru_cache
+import json
 import os
 import signal
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -50,7 +55,80 @@ import run_model_parity as parity  # noqa: E402
 CODEX_DEFAULT_TIMEOUT = 180
 
 
-def call_codex(model_id, prompt, timeout=CODEX_DEFAULT_TIMEOUT):
+@lru_cache(maxsize=1)
+def _disabled_skill_config() -> str:
+    """Return a Codex override that disables installed skill metadata.
+
+    Isolated eval calls receive the complete shipping contract explicitly in
+    their prompt. Loading unrelated personal and plugin skill descriptions adds
+    thousands of input tokens and can influence routing, so enumerate and
+    disable them for the model invocation itself.
+    """
+    user_root = Path.home()
+    paths: set[str] = set()
+    for root in (user_root / ".codex" / "skills", user_root / ".agents" / "skills"):
+        for candidate in root.glob("*/SKILL.md") if root.is_dir() else ():
+            if candidate.is_file():
+                paths.add(str(candidate.resolve()))
+    plugin_cache = user_root / ".codex" / "plugins" / "cache"
+    if plugin_cache.is_dir():
+        # Plugin packages put skills below a literal `skills/` directory, at a
+        # small number of version/package nesting depths. Fixed-depth globs
+        # avoid walking node_modules, assets, and other irrelevant subtrees.
+        for pattern in (
+            "*/skills/*/SKILL.md",
+            "*/*/skills/*/SKILL.md",
+            "*/*/*/skills/*/SKILL.md",
+            "*/*/*/*/skills/*/SKILL.md",
+        ):
+            for candidate in plugin_cache.glob(pattern):
+                if candidate.is_file():
+                    paths.add(str(candidate.resolve()))
+    entries = ",".join(
+        "{path=" + json.dumps(path) + ",enabled=false}"
+        for path in sorted(paths)
+    )
+    return f"skills.config=[{entries}]"
+
+
+def _codex_usage(raw_events: str) -> dict[str, int]:
+    """Extract the largest cumulative token counters from Codex JSONL."""
+    counters = {"input_tokens": 0, "cached_input_tokens": 0, "output_tokens": 0}
+    aliases = {
+        "input_tokens": "input_tokens",
+        "cached_input_tokens": "cached_input_tokens",
+        "cached_tokens": "cached_input_tokens",
+        "output_tokens": "output_tokens",
+    }
+
+    def visit(value) -> None:
+        if isinstance(value, dict):
+            for key, item in value.items():
+                target = aliases.get(key)
+                if target and isinstance(item, int) and item >= 0:
+                    counters[target] = max(counters[target], item)
+                visit(item)
+        elif isinstance(value, list):
+            for item in value:
+                visit(item)
+
+    for line in raw_events.splitlines():
+        try:
+            visit(json.loads(line))
+        except (TypeError, json.JSONDecodeError):
+            continue
+    return counters
+
+
+def call_codex(
+    model_id,
+    prompt,
+    timeout=CODEX_DEFAULT_TIMEOUT,
+    *,
+    cwd=None,
+    isolated=False,
+    event_sink=None,
+):
     """Call the local Codex CLI (``codex exec``) and return its final message.
 
     Uses ``--output-last-message FILE`` to get the agent's clean prose turn
@@ -63,8 +141,16 @@ def call_codex(model_id, prompt, timeout=CODEX_DEFAULT_TIMEOUT):
     """
     fd, out_path = tempfile.mkstemp(prefix="codex_out_", suffix=".txt")
     os.close(fd)
+    started = time.perf_counter()
     cmd = ["codex", "exec", "--skip-git-repo-check", "--sandbox", "read-only",
            "--ephemeral", "-o", out_path]
+    if isolated:
+        if cwd is None:
+            raise ValueError("isolated Codex calls require an explicit empty working directory")
+        cmd += [
+            "--ignore-user-config", "--ignore-rules", "--json", "-C", str(cwd),
+            "-c", _disabled_skill_config(),
+        ]
     if model_id:
         cmd += ["-m", model_id]
     cmd.append("-")  # read the prompt from stdin
@@ -77,7 +163,16 @@ def call_codex(model_id, prompt, timeout=CODEX_DEFAULT_TIMEOUT):
         except (FileNotFoundError, OSError) as e:
             return None, f"codex cli error: {e}"
         try:
-            _, stderr = proc.communicate(input=prompt, timeout=timeout)
+            stdout, stderr = proc.communicate(input=prompt, timeout=timeout)
+            if event_sink is not None:
+                event_sink.append(stdout)
+                metric = {
+                    "type": "unslop.invocation_metrics",
+                    "model": model_id,
+                    "elapsed_seconds": round(time.perf_counter() - started, 6),
+                    **_codex_usage(stdout),
+                }
+                event_sink.append(json.dumps(metric, separators=(",", ":")) + "\n")
         except subprocess.TimeoutExpired:
             try:
                 os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
