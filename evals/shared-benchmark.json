@@ -490,7 +490,7 @@
           "type": "judge",
           "rubric": [
             "The answer removes the stock opener, generic time-setting filler, business jargon, empty summary transition, and conclusion scaffolding: 'Here's the thing', 'in today's', 'leverage our data', 'deep dive', 'at the end of the day', 'In conclusion', and 'one thing is certain'.",
-            "The answer removes or concretizes 'game-changer', vague 'actionable' praise, 'raises the bar', and 'exciting new chapter in our journey' rather than protecting them as ordinary promotional metaphor.",
+            "The answer removes or concretizes 'game-changer', vague 'actionable' praise, 'raises the bar', and 'exciting new chapter in our journey' rather than protecting them as ordinary promotional metaphor or substituting equally empty praise or transitions.",
             "The answer preserves Northstar, Q3, the \u00a348,000 budget, 184 opted-in UK customers, both quoted product claims, the 2.8% control, the 3.4% target, and Friday, 18 October.",
             "The answer keeps the experiment framing and does not claim that the 3.4% target was reached or that the campaign already succeeded."
           ],
@@ -510,7 +510,8 @@
             "In conclusion",
             "raises the bar",
             "one thing is certain",
-            "exciting new chapter in our journey"
+            "exciting new chapter in our journey",
+            "actionable"
           ]
         },
         {
@@ -567,7 +568,7 @@
       "tags": [
         "contextual_diagnosis",
         "adversarial",
-        "failure_mode:The rewrite preserves obvious stock hype because the contrac"
+        "failure_mode:The source audit overlooks sentence-level filler because it "
       ]
     }
   ],

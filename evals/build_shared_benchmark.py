@@ -212,7 +212,7 @@ DETERMINISTIC_ASSERTIONS = {
                 "Here's the thing", "game-changer", "in today's",
                 "leverage our data", "deep dive", "at the end of the day",
                 "In conclusion", "raises the bar", "one thing is certain",
-                "exciting new chapter in our journey",
+                "exciting new chapter in our journey", "actionable",
             ],
         ),
         _assertion("skill-core-dirty-01-keeps-budget", "regex", pattern=r"£48,000"),

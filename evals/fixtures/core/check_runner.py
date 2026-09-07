@@ -101,6 +101,8 @@ def main() -> int:
         "Do not run the material at the unapproved 75 C for four hours. "
         "Do not repeat the unapproved 75 C cycle."
     )
+    boundary_source = "Here's the thing: our budget is fixed."
+    boundary_finding = _span(boundary_source, "Here's the thing: ", "boundary", "filler")
     semantic_resolution_gate = (
         _semantic_resolution(
             safety_source,
@@ -123,6 +125,14 @@ def main() -> int:
             [repeat_unsafe],
         )["passed"]
         is False
+        and _semantic_resolution(
+            boundary_source, "Our budget is fixed.", [boundary_finding],
+            [_span(boundary_source, "Here's the thing: our", "boundary", "filler")],
+        )["passed"] is True
+        and _semantic_resolution(
+            boundary_source, "Our budget is fixed.", [boundary_finding],
+            [_span(boundary_source, boundary_source, "boundary", "filler")],
+        )["passed"] is False
     )
     adjacent_resolution_source = (
         "Submission is due on 10 September. Keep this unrelated sentence."
@@ -232,9 +242,16 @@ def main() -> int:
     paragraph_finding = _span(
         paragraph_source, "Remove this coda.", "paragraph-coda", "empty_abstraction"
     )
-    paragraph_delete_coverage = _change_coverage(
-        paragraph_source, "Keep this sentence.", [paragraph_finding]
-    ).get("passed") is True
+    spacing_source = "The logs speak for themselves: 17 denied requests."
+    paragraph_delete_coverage = (
+        _change_coverage(
+            paragraph_source, "Keep this sentence.", [paragraph_finding]
+        ).get("passed") is True
+        and _change_coverage(
+            spacing_source, "17 denied requests.",
+            [_span(spacing_source, "The logs speak for themselves:", "spacing", "filler")],
+        ).get("passed") is True
+    )
     adjacent_source = "Keep this sentence.\nDELETE\nRemove this coda."
     adjacent_text_still_blocked = _change_coverage(
         adjacent_source,
@@ -376,6 +393,11 @@ def main() -> int:
         _validate_generation(
             {"findings": [date_edit], "rewrite": broad_date_source},
             broad_date_source,
+        )["findings"][0]["evidence_spans"] == date_edit["evidence_spans"]
+        and _validate_generation(
+            {"findings": [{**date_edit, "evidence_spans": [
+                {"start": 999, "end": 1000, "text": first_date["text"]}
+            ]}], "rewrite": broad_date_source}, broad_date_source,
         )["findings"][0]["evidence_spans"] == date_edit["evidence_spans"]
     )
     broad_date_finding = _span(
@@ -968,6 +990,25 @@ def main() -> int:
             sys.stderr.write(score_proc.stderr)
             return score_proc.returncode
 
+        development_path = temp / "development.json"
+        development_command = [
+            sys.executable, str(ROOT / "evals/core_runner.py"), str(manifest_path),
+            "--split", "tune", "--development", "--model", "gemini:fixture-model",
+            "--responses", str(responses_path), "--out", str(development_path),
+        ]
+        development_run = _run(development_command)
+        development_score = _run([
+            sys.executable, str(ROOT / "evals/core_metrics.py"), str(manifest_path),
+            str(development_path), "--split", "tune", "--allow-offline",
+        ])
+        development_ok = development_run.returncode == 0 and development_score.returncode == 0
+        if development_ok:
+            development_ok = json.loads(development_score.stdout)["evaluation"]["scope"] == "development"
+        same_model = _run(development_command + ["--judge-model", "gemini:fixture-model"])
+        independent_judge_required = same_model.returncode == 1
+        public_development = _run(development_command + ["--split", "holdout"])
+        development_tune_only = public_development.returncode == 1
+
         holdback_case = dict(case)
         holdback_case["split"] = "holdback"
         manifest_path.write_text(
@@ -1116,6 +1157,9 @@ def main() -> int:
     print("parallel_case_merge={}".format(str(bool(parallel_case_merge)).lower()))
     return 0 if (
         evidence_ok
+        and development_ok
+        and independent_judge_required
+        and development_tune_only
         and precision_first_contract
         and provenance_ok
         and reproducible_provenance
