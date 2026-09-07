@@ -13,7 +13,7 @@ opaque or mixed metaphor, misleading heading, needless repetition, or clear
 internal contradiction or ambiguity. Track every hard scanner match and other
 defect as confirmed or protected, with a reason; repair every confirmed span.
 Read every sentence before scanner output, including headings and endings.
-Phrase lists are incomplete. Confirm filler when deletion loses no meaning;
+Phrase lists are incomplete; recognize paraphrased scaffolding by function. Confirm filler when deletion loses no meaning;
 replace inflated diction with its plain equivalent. Punctuation, vocabulary,
 cadence, and structure alone prove neither a defect nor authorship.
 

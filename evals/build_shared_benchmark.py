@@ -49,6 +49,7 @@ SPLITS: dict[str, str] = {
     "SKILL-ATTRIBUTION-02": "tune",
     "SKILL-SAFETY-SEMANTIC-02": "tune",
     "SKILL-CORE-DIRTY-01": "tune",
+    "SKILL-PARAPHRASE-01": "tune",
     "SKILL-DEHEDGE-02": "holdout",
     "SKILL-REGISTER-01": "holdout",
 }
@@ -66,6 +67,7 @@ DOMAIN: dict[str, str] = {
     "SKILL-ATTRIBUTION-02": "operations",
     "SKILL-SAFETY-SEMANTIC-02": "safety",
     "SKILL-CORE-DIRTY-01": "product",
+    "SKILL-PARAPHRASE-01": "operations",
 }
 
 # Difficulty is a coarse hint for reporting, not a gate.
@@ -335,7 +337,7 @@ def build_manifest(source: dict) -> dict:
             {
                 "id": "abl-detection-repair",
                 "removed_component": "compact scanner, structural diagnosis, and contextual rewrite rules",
-                "expected_regressions": ["SKILL-CORE-DIRTY-01", "SKILL-MACRO-01"],
+                "expected_regressions": ["SKILL-CORE-DIRTY-01", "SKILL-PARAPHRASE-01", "SKILL-MACRO-01"],
             },
             {
                 "id": "abl-preservation",

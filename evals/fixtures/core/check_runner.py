@@ -20,15 +20,14 @@ from core_runner import (  # noqa: E402
     RunnerError,
     _attribution_preservation,
     _change_coverage,
-    _generation_prompt,
     _finding_sentence_spans,
     _merge_case_results,
     main as core_runner_main,
     _needs_with_skill_generation,
     _semantic_judgment_prompt,
     _semantic_resolution,
-    _semantic_prompt,
     _shipping_contract,
+    _validate_diagnosis,
     _validate_generation,
     _validate_semantic_judgment,
     _validation_blockers,
@@ -337,7 +336,6 @@ def main() -> int:
         "protected_spans": [protected],
         "constraints": [{"id": "constraint-1", "description": "Section 4 remains unchanged."}],
     }
-    semantic_prompt = _semantic_prompt(case)
     repeated_source = "The draft is clear. The draft is not final."
     try:
         _validate_generation(
@@ -390,8 +388,13 @@ def main() -> int:
         {key: first_date[key] for key in ("start", "end", "text")}
     ]
     separated_relational_evidence = (
-        _validate_generation(
-            {"findings": [date_edit], "rewrite": broad_date_source},
+        _validate_diagnosis(
+            {"findings": [{
+                "text": date_edit["text"],
+                "category": date_edit["category"],
+                "rationale": date_edit["rationale"],
+                "evidence_spans": [{"text": first_date["text"]}],
+            }]},
             broad_date_source,
         )["findings"][0]["evidence_spans"] == date_edit["evidence_spans"]
         and _validate_generation(
@@ -416,82 +419,28 @@ def main() -> int:
     except RunnerError:
         cross_sentence_edit_span_rejected = True
     resolved_contract = _shipping_contract()["resolved_contract"]
-    precision_first_contract = (
-        "Never use the current date" in semantic_prompt
-        and "or lacks stated support" not in semantic_prompt
-        and "A scanner match alone never authorizes an edit" in _generation_prompt(
-            case,
-            "with_skill",
-            scanner_findings=[issue],
-            semantic_findings=[],
-            source_diagnostics={},
-        )
-        and "Inspect headings and closing calls to action" in _generation_prompt(
-            case,
-            "with_skill",
-            scanner_findings=[],
-            semantic_findings=[],
-            source_diagnostics={},
-        )
-        and "number's role and unit" in semantic_prompt
-        and "Inspect headings and closing calls to action" in semantic_prompt
-        and "category-changing slogan" in semantic_prompt
-        and "A bounded offer" in semantic_prompt
-        and "Compare categorical predictions" in semantic_prompt
-        and "ordinary promotional metaphor" in semantic_prompt
-        and "Preserve a concrete closing call to action" in semantic_prompt
-        and "closing generic platitude" in semantic_prompt
-        and "agenda item repeats the document title" in semantic_prompt
-        and "one span covering both" in semantic_prompt
-        and "Put the other side" in semantic_prompt
-        and "Never make both sentences writable" in semantic_prompt
-        and "SOURCE-AUDIT FINDINGS are confirmed" in _generation_prompt(
-            case,
-            "with_skill",
-            scanner_findings=[issue],
-            semantic_findings=[issue],
-            source_diagnostics={},
-        )
-        and "natural in-place replacement" in _generation_prompt(
-            case,
-            "with_skill",
-            scanner_findings=[issue],
-            semantic_findings=[issue],
-            source_diagnostics={},
-        )
-        and "minimum adjacent boundary word" in _generation_prompt(
-            case,
-            "with_skill",
-            scanner_findings=[issue],
-            semantic_findings=[issue],
-            source_diagnostics={},
-        )
-        and "Do not append editorial instructions" in _generation_prompt(
-            case,
-            "with_skill",
-            scanner_findings=[issue],
-            semantic_findings=[issue],
-            source_diagnostics={},
-        )
-        and "name the concrete referent" in _generation_prompt(
-            case,
-            "with_skill",
-            scanner_findings=[issue],
-            semantic_findings=[issue],
-            source_diagnostics={},
-        )
-        and "before that sentence's" in _generation_prompt(
-            case,
-            "with_skill",
-            scanner_findings=[issue],
-            semantic_findings=[issue],
-            source_diagnostics={},
-        )
-        and "categorical completion or approval" in semantic_prompt
-        and "claim against later" in semantic_prompt
-        and "`scheduled`, or `outstanding`" in semantic_prompt
-        and len(resolved_contract.split()) <= 650
-    )
+    compact_contract = len(resolved_contract.split()) <= 650
+    # Prompt wording is not evidence of model behavior. Behavioral cases own
+    # contextual judgment; this fixture checks the actual annotation boundary.
+    try:
+        _validate_diagnosis({"findings": [], "rewrite": "edited source"}, source)
+        audit_edit_rejected = False
+    except RunnerError:
+        audit_edit_rejected = True
+    try:
+        _validate_diagnosis({"findings": [{
+            "text": "quote absent from source", "category": "filler", "rationale": "empty",
+        }]}, source)
+        invented_audit_quote_rejected = False
+    except RunnerError:
+        invented_audit_quote_rejected = True
+    try:
+        _validate_diagnosis({"findings": [{
+            "text": "aaa", "category": "repetition", "rationale": "ambiguous occurrence",
+        }]}, "aaaa")
+        overlapping_quote_rejected = False
+    except RunnerError:
+        overlapping_quote_rejected = True
     generations = {
         "with_skill": {
             "findings": [
@@ -1046,8 +995,8 @@ def main() -> int:
 
     print("arms={} runs={}".format(",".join(arms), len(predictions["runs"])))
     print(
-        "precision_first_contract={}".format(
-            str(bool(precision_first_contract)).lower()
+        "compact_contract={}".format(
+            str(bool(compact_contract)).lower()
         )
     )
     print("raw_evidence={} provenance={}".format(str(bool(evidence_ok)).lower(), str(bool(provenance_ok)).lower()))
@@ -1060,6 +1009,9 @@ def main() -> int:
     print("judge_blind={}".format(str(bool(judge_blind)).lower()))
     print("normalized_offsets={}".format(str(bool(normalized_offsets)).lower()))
     print("repeated_offset_rejected={}".format(str(bool(repeated_offset_rejected)).lower()))
+    print("audit_edit_rejected={}".format(str(audit_edit_rejected).lower()))
+    print("invented_audit_quote_rejected={}".format(str(invented_audit_quote_rejected).lower()))
+    print("overlapping_quote_rejected={}".format(str(overlapping_quote_rejected).lower()))
     print("decimal_sentence_coverage={}".format(str(bool(decimal_sentence_coverage)).lower()))
     print("separated_relational_evidence={}".format(str(bool(separated_relational_evidence)).lower()))
     print("cross_sentence_edit_span_rejected={}".format(str(bool(cross_sentence_edit_span_rejected)).lower()))
@@ -1160,7 +1112,10 @@ def main() -> int:
         and development_ok
         and independent_judge_required
         and development_tune_only
-        and precision_first_contract
+        and compact_contract
+        and audit_edit_rejected
+        and invented_audit_quote_rejected
+        and overlapping_quote_rejected
         and provenance_ok
         and reproducible_provenance
         and paired_luna_design

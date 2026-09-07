@@ -32,6 +32,15 @@ The generated manifest adds:
 Script assertions run from `evals/` and read each run's `{output_dir}/output.md`.
 Use them as regression backstops; the judge assertions carry the behavioral signal.
 
+The tune cases cover phrase-level filler, paraphrased sentence and paragraph
+scaffolding, macro cleanup, clean no-ops, literal language, attribution,
+relational contradictions, safety limits, inert input, and audit-only routing.
+`SKILL-PARAPHRASE-01` deliberately has zero scanner hits: it removes an empty
+opening, identity claim, and closing question while preserving an informative
+question and answer. A larger phrase catalog would not exercise that distinction.
+These are authored regression cases, not a representative corpus or human
+calibration of the judge. Prompt-substring checks do not substitute for them.
+
 ## Add a Case
 
 When you find a new AIism or failure mode, add it to `evals/adversarial-evals.json`

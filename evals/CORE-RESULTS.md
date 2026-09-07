@@ -17,7 +17,65 @@ three clean documents. V7 was spent before a product call, and neither arm ran.
 It provides no evidence that the current pipeline is better, worse, or equal to
 raw Luna.
 
-## Cross-family development — 2026-09-07
+## Speed and coverage pass — 2026-09-07
+
+The source audit now returns findings only, with exact quotes instead of
+mandatory character arithmetic. Python attaches the original source and resolves
+unique quotes; ambiguous overlapping quotes are rejected too. The generation
+format still requires the complete rewrite. Duplicate audit instructions and
+unused diff diagnostics were removed. Clean rewrites explicitly stop after
+diagnosis. The shared contract now calls out paraphrased scaffolding by function.
+
+The new `SKILL-PARAPHRASE-01` tune case has zero scanner hits. Both behavioral
+arms removed the empty ceremony, identity claim, and closing question while
+copying the informative question-and-answer paragraph exactly. This adds
+regression coverage, not evidence of lift over the baseline.
+
+Final native-evidence-verified tune results use an independent blinded Sol judge:
+
+| Outcome | Gemini 3.5 Flash + skill / raw | Luna + skill / raw |
+|---|---:|---:|
+| Dirty issues repaired | 13/20 / 13/20 | 15/20 / 14/20 |
+| Dirty factual constraints retained | 7/7 / 7/7 | 7/7 / 7/7 |
+| Dirty protected spans retained | 20/20 / 20/20 | 20/20 / 20/20 |
+| Clean exact no-ops | 7/7 / 4/7 | Unscored: annotation failure |
+| Clean factual constraints retained | 39/39 / 37/39 | Unscored |
+
+Gemini repaired 9/11 marketing and 4/9 technical issues; raw repaired 7/11 and
+6/9. Luna repaired 9/11 and 6/9; raw repaired 7/11 and 7/9. Neither final dirty
+trial used a fallback. Luna's clean trial failed because read-only evidence
+overlapped a writable finding; the failure retains the native response.
+The preceding lean trial repaired 15/20 with Gemini versus 9/20 raw, but Luna
+fell back on both documents (0/20 versus 10/20 raw). This variability rules out
+claiming a consistent cross-family quality improvement.
+
+Across the same two dirty tune cases, Gemini's summed model-call latency was
+178 seconds before this pass, 147 in the first lean trial, and 130 in the final
+trial. Total output tokens, including reasoning, were 36,749, 23,428, and
+21,550 respectively; each paired trial used nine model calls including judging.
+These are observed call-time sums, not wall-clock guarantees or a controlled
+latency study. In a separate three-repeat local check on 5,304 characters,
+removing the unused diff pass reduced median coverage-check time from 249 ms
+to 0.1 ms without changing the verdict.
+
+The full behavioral tune run completed all 22 generations without timeouts and
+finished in 492 seconds, but acceptance failed on two with-skill cases:
+`SKILL-CORE-DIRTY-01` retained vague "actionable" praise; `SKILL-MACRO-01` failed
+the judge's rhythm-variation requirement after removing the scaffold and coda.
+The latter requirement is in tension with preserving otherwise natural
+sentences. Neither assertion was weakened. The other nine with-skill cases
+passed, including the new paraphrase case.
+
+The full offline/integrity suite and lint passed. Brittle prompt-substring
+checks were replaced with observable annotation checks; existing behavioral
+coverage remains. The deterministic budget is now 74 examples / 378 predicates,
+with no new test files. Trials and implementation snapshots are retained locally
+in `evals/runs/families/lean/` and `lean-unique/`; the first directory precedes
+the conservative overlapping-quote fix. Behavioral artifacts are archived in
+`evals/runs/families/lean-unique/behavioral/`. No holdout or holdback was opened.
+Human calibration and live Cloudflare/Claude evidence are still missing.
+
+## Earlier cross-family development — 2026-09-07
 
 Provider support now includes Codex, Claude CLI, Gemini, and explicit open models
 through Cloudflare AI Gateway. This is development support, not a new release
@@ -25,7 +83,7 @@ claim. The shared writing contract remains below 650 words. Scored trials below
 use public tune cases and an independent, blinded Sol judge; no holdout or
 holdback was opened. Human judge calibration has not been performed.
 
-The latest Gemini 3.5 Flash trial improves repair while preserving clean text:
+The Gemini 3.5 Flash trial before the speed pass improved repair while preserving clean text:
 
 | Outcome | Gemini + UNSLOP | Plain Gemini |
 |---|---:|---:|
@@ -39,7 +97,7 @@ The marketing case repaired 6/11 issues and the technical case 5/9. Neither
 fell back to the source, but nine issues still need repair. These counts do not
 support an "all AI tells removed" claim.
 
-The latest Luna dirty trial failed because a finding added a comma absent from
+The Luna dirty trial before the speed pass failed because a finding added a comma absent from
 the source quote; it is unscored. Its current clean trial left 4/7 documents
 exact, versus 3/7 for raw Luna, and made three false findings. Both arms
 preserved all 39 factual constraints. It over-edited a subscription heading,

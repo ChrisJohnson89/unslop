@@ -640,7 +640,7 @@
         },
         {
           "type": "stdout_contains",
-          "value": "precision_first_contract=true"
+          "value": "compact_contract=true"
         },
         {
           "type": "stdout_contains",
@@ -892,6 +892,25 @@
         {
           "type": "judge",
           "check": "The answer keeps the experiment framing and does not claim that the 3.4% target was reached or that the campaign already succeeded."
+        }
+      ]
+    },
+    {
+      "id": "SKILL-PARAPHRASE-01",
+      "category": "contextual_diagnosis",
+      "title": "Remove paraphrased scaffolding while preserving a useful question and answer",
+      "target": "skill",
+      "prompt": "Clean up this pilot announcement. Preserve its information and voice; return the edited announcement only.\n\nBefore we get to the dates, it helps to pause and consider what this milestone really represents.\n\nThe pilot runs from 6 May to 20 May. It is not merely a trial; it is a statement of who we are.\n\nWho can join? Only the 24 support agents on the evening shift. Maya will collect their notes on 21 May.\n\nWhat does that mean for the team? A future with possibility at its center.",
+      "failure_mode": "The editor only removes familiar catalog phrases, leaves paraphrased ceremonial framing and identity claims, or deletes a useful question and answer because it shares a rhetorical shape with filler.",
+      "correct_behavior": "Delete the opening ceremony, empty identity claim, and empty closing question and answer; preserve the dates, evening-shift eligibility, 24 support agents, Maya and her collection date. Leave the informative question-and-answer paragraph byte-for-byte unchanged.",
+      "assertions": [
+        {
+          "type": "judge",
+          "check": "The announcement removes the opening sentence about pausing to consider a milestone, the trial-as-identity claim, and the empty closing question and answer. It does not replace them with other ceremony, hype, or a moral."
+        },
+        {
+          "type": "judge",
+          "check": "The announcement preserves the pilot from 6 May to 20 May and leaves this informative paragraph unchanged: Who can join? Only the 24 support agents on the evening shift. Maya will collect their notes on 21 May."
         }
       ]
     }

@@ -36,6 +36,7 @@ try:
         _semantic_judgment_prompt,
         _shipping_contract,
         _source_diagnostics,
+        _validate_diagnosis,
         _validate_generation,
         _validation_battery,
         _validation_blockers,
@@ -61,6 +62,7 @@ except ImportError:
         _semantic_judgment_prompt,
         _shipping_contract,
         _source_diagnostics,
+        _validate_diagnosis,
         _validate_generation,
         _validation_battery,
         _validation_blockers,
@@ -453,7 +455,7 @@ def verify_prediction_evidence(
         semantic_model_output = _extract_json_object(semantic["raw_response"])
         if semantic.get("model_parsed") != semantic_model_output:
             raise InputError(f"{case_id}: semantic model_parsed differs from raw response")
-        semantic_canonical = _validate_generation(
+        semantic_canonical = _validate_diagnosis(
             semantic_model_output, case["source"]
         )
         if semantic.get("parsed") != semantic_canonical:
@@ -1242,7 +1244,7 @@ def score(
             raw_response = semantic.get("raw_response")
             if isinstance(raw_response, str):
                 model_parsed = _extract_json_object(raw_response)
-                raw_findings = _validate_generation(
+                raw_findings = _validate_diagnosis(
                     model_parsed, case["source"]
                 )["findings"]
                 raw_tp, raw_fp, raw_fn = match_findings(

@@ -72,14 +72,17 @@ Predicted findings use offsets into the original source. A finding matches one
 gold issue at 0.5 or greater intersection-over-union. Category labels are
 reported but do not control identity because two editors can legitimately name
 the same problem differently. Matching is one-to-one. The runner requires an
-exact source quote and normalizes a wrong offset only when that quote occurs
-once, for both findings and read-only evidence. A grammatical repair may carry
+exact source quote and computes missing or wrong offsets only when that quote
+occurs once, for both findings and read-only evidence. Models supply offsets
+only to disambiguate repeated quotes. The source audit returns findings only;
+the runner attaches the immutable source without generating another copy.
+A grammatical repair may carry
 the immediately following word into a finding; deleting a phrase may remove its
 trailing inline whitespace. Other words and indentation remain protected.
 Paragraph deletion may also remove its own separators. Duplicate, malformed,
 ambiguous, and shotgun findings count as failures.
-Coverage uses exact protected text between findings. Diff annotations are
-diagnostic: repeated spaces can make their positions misleading.
+Coverage uses exact protected text between findings and rejects new sentence
+boundaries inside replacements. There is no second diff-based coverage oracle.
 
 For compatibility, JSON recall and repair ratios use 1 when there are no gold
 issues. That empty denominator is not success evidence. In human reports, mark
