@@ -60,8 +60,7 @@ scope, uncertainty, attribution, register, and meaning. Add no claims, advice,
 personality, anecdote, certainty, or conclusion. Delete empty framing; do not
 substitute filler or create staccato anti-slop prose. Re-read for missed defects
 and introduced filler; stop at matters of taste. Preserve force-bearing "never", "must", and
-"all" exactly in safety, security, legal, and technical rules. Presets change
-delivery, not facts. For lists, return one validated replacement per item.
+"all" exactly in safety, security, legal, and technical rules. For lists, return one validated replacement per item.
 
 For audit-only requests, report findings and protections without rewriting;
 report each requested load-bearing span separately. Exact no-op applies to
@@ -73,23 +72,29 @@ Return a finding only when the contextual defect is clearer than preservation.
 
 ## Validation
 
-After every rewrite or voiced draft, run:
+When Python and the bundled files are available, run the following after every
+rewrite or voiced draft. In hosts without execution, use the manual checks in
+`references/host-capabilities.md`; never claim these commands ran or assign
+measured scores. The manual path does not certify automated gates or `--strict`.
+
+Run from the skill directory, with source and output in separate temporary files.
+For a new draft, compare facts with the user's brief; do not invent an original:
 
 ```bash
 python3 scripts/validate_preservation.py original.txt transformed.txt
-python3 scripts/banned_phrase_scan.py <<< "$OUTPUT"
-python3 scripts/structure_scan.py <<< "$OUTPUT"
-python3 scripts/silhouette_scan.py <<< "$OUTPUT"
-python3 scripts/readability_metrics.py <<< "$OUTPUT"
+python3 scripts/banned_phrase_scan.py transformed.txt
+python3 scripts/structure_scan.py transformed.txt
+python3 scripts/silhouette_scan.py transformed.txt
+python3 scripts/readability_metrics.py transformed.txt
 python3 scripts/diff_check.py original.txt transformed.txt
 ```
 
 Block preservation loss, introduced hard or `anti_slop_register` hits,
-unjustified structural damage, corroborated or hard silhouette damage, staccato,
-and strict-mode scores below 32/40. Use preservation `--strict` for legal,
+unjustified structural damage, corroborated or hard silhouette damage, and staccato. Use preservation `--strict` for legal,
 medical, security, or scientific text. Preexisting soft cadence and
 uncorroborated soft silhouette warnings are advisory.
 
-For remaining structure damage, pass exact findings to
-`evals/run_structure_climb.py`. Re-read negations, conditions, scope, certainty,
-and party relationships.
+For remaining confirmed structure defects, make a focused repair in the current
+conversation and repeat the available checks. Stop at matters of taste. Re-read
+negations, conditions, scope, certainty, and party relationships. Local checks
+are incomplete heuristics, not a proof of semantic preservation or authorship.

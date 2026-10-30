@@ -22,7 +22,7 @@ Composite:
   silhouette_penalty = sum_i weight_i * relu((m_i - median_i) / scale_i)
 
 scored against a committed HUMAN reference distribution
-(evals/fixtures/silhouette/human_reference.json), negative side clipped. The
+(assets/silhouette-reference.json), negative side clipped. The
 document flags when silhouette_penalty >= 1.0.
 
 Scale note (deviation from a naive sample-IQR denominator, stated on purpose):
@@ -69,7 +69,7 @@ from _lang import (  # noqa: E402
 
 REFERENCE_PATH = (
     Path(__file__).resolve().parent.parent
-    / "evals" / "fixtures" / "silhouette" / "human_reference.json"
+    / "assets" / "silhouette-reference.json"
 )
 
 # Flag the document when the composite reaches this penalty (research-validated).

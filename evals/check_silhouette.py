@@ -5,13 +5,13 @@ Two modes:
 
   --reference    Regenerate the human reference distribution from the named
                  source docs and assert it equals the committed
-                 evals/fixtures/silhouette/human_reference.json. This is the
+                 assets/silhouette-reference.json. This is the
                  drift gate: editing the scanner's metrics or the human corpus
                  without regenerating the reference fails here. Pass --write to
                  rewrite the committed file (regeneration, not a check).
 
   --separation   Score the in-repo ai/ and human/ corpora with the committed
-                 reference and assert the research-validated separation:
+                 reference and assert the fixture separation:
                  >= 8/12 ai docs flagged and 0/8 human docs flagged.
 
 Exit 0 on success, 1 on drift / separation failure, 2 on a missing input.
@@ -38,10 +38,10 @@ from scripts.silhouette_scan import (  # noqa: E402
     scan,
 )
 
-REFERENCE_PATH = ROOT / "evals" / "fixtures" / "silhouette" / "human_reference.json"
+REFERENCE_PATH = ROOT / "assets" / "silhouette-reference.json"
 CORPUS = ROOT / "evals" / "fixtures" / "silhouette" / "corpus"
 
-# Research-validated constants (scratchpad/research/silhouette.md). fence is the
+# Inherited heuristic constants from theclaymethod/unslop at 17ed39c. fence is the
 # human upper fence used as the per-metric scale floor; weight is the composite
 # weight. These are hand-validated, not corpus-derived, so they live here and are
 # baked into the regenerated reference file.
@@ -123,7 +123,7 @@ def build_reference() -> dict:
             "Human reference distribution for scripts/silhouette_scan.py. "
             "Regenerate with: python3 evals/check_silhouette.py --reference --write. "
             "median/iqr/n are derived from the sources below; fence and weight are "
-            "research-validated constants (scratchpad/research/silhouette.md). The "
+            "inherited heuristic constants from theclaymethod/unslop at 17ed39c. The "
             "scorer scales each metric by max(iqr, fence): the sample IQR is "
             "degenerate at zero for these one-sided tells, so the fence is the "
             "effective scale."

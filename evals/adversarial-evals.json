@@ -1,281 +1,8 @@
 {
   "skill_name": "unslop",
-  "suite": "adversarial",
-  "version": "1.0.0",
-  "description": "Adversarial evals that probe failure modes the happy-path suite (evals.json) never touches: false positives, over-correction, do-no-harm on already-human text, mode/preset mis-routing, fact-preservation traps, rubric gaming, content-type blindness, prompt-injection, and newer AI patterns the scanner misses. Two target types: 'script' cases are deterministic and run by run_adversarial.py; 'skill' cases are behavioral and judged against the agent's actual output. 'xfail: true' marks a case that FAILS against the current code/skill — a documented bug to fix, not a runner error. Rows carrying a 'source' field are named production regressions: real shipped copy that previously passed the scanner clean and must stay caught.",
-  "assertion_vocabulary": {
-    "exit_code": "process exit code equals N",
-    "stdout_contains": "stdout includes the literal substring",
-    "stdout_not_contains": "stdout does not include the literal substring",
-    "stderr_not_contains": "stderr does not include the literal substring",
-    "json": "parse stdout as JSON, then `path` (dot path) `equals`/`gte`/`lte` a value",
-    "judge": "qualitative check on the agent's output, evaluated by a human or LLM judge",
-    "violation_phrase_contains": "parse stdout as JSON; at least one violations[].phrase contains the literal substring"
-  },
+  "version": "3.0.0",
+  "description": "Behavioral scenarios for native GPT editing. These need actual generated answers and contextual review; schema validation is not a behavioral pass.",
   "evals": [
-    {
-      "id": "MAINTENANCE-CONTRACT-01",
-      "title": "Detailed deterministic maintenance matrix passes",
-      "target": "script",
-      "category": "contract_batch",
-      "command": [
-        "python3",
-        "evals/check_maintenance_contract.py"
-      ],
-      "assertions": [
-        {
-          "type": "exit_code",
-          "equals": 0
-        },
-        {
-          "type": "stdout_contains",
-          "value": "maintenance contract: 11/11 passed"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "unexpected=0"
-        }
-      ]
-    },
-    {
-      "id": "COMPLEXITY-BUDGET-01",
-      "title": "Expanded deterministic suite stays inside an honest outcome budget",
-      "target": "script",
-      "category": "complexity_budget",
-      "command": [
-        "python3",
-        "evals/check_complexity_budget.py"
-      ],
-      "assertions": [
-        {
-          "type": "exit_code",
-          "equals": 0
-        },
-        {
-          "type": "stdout_contains",
-          "value": "executable examples <= 80"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "expanded outcome predicates <= 400"
-        }
-      ]
-    },
-    {
-      "id": "BEHAVIOR-ROUTE-01",
-      "category": "harness_cache",
-      "title": "Canonical cached and uncached behavioral paths stay on Luna",
-      "target": "script",
-      "command": [
-        "python3",
-        "evals/fixtures/cache/check_behavioral_luna.py"
-      ],
-      "failure_mode": "The lower-level generator test can stay green while run_behavioral.sh routes generation or either judge branch back to Claude, selects a different Codex model, writes its probe artifacts over a real run, accepts omitted/duplicate/unexpected result rows or malformed scored verdicts, or pays for one repeated judge call per rubric sentence instead of one all-conditions verdict per case.",
-      "correct_behavior": "The canonical wrapper uses the safe read-write cache by default, selects gpt-5.6-luna for generation and judging in both default and explicit uncached modes, never calls Claude, supports an isolated run root for the probe, rejects omitted/duplicate/unexpected results and incomplete scored verdicts, and emits one gated live-judge assertion per case with every rubric condition preserved.",
-      "assertions": [
-        {
-          "type": "exit_code",
-          "equals": 0
-        },
-        {
-          "type": "stdout_contains",
-          "value": "uncached_generation=luna"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "uncached_judge=luna"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "cached_generation=luna"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "cached_judge=luna"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "one_judge_per_case=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "partial_benchmark=rejected"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "duplicate_benchmark=rejected"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "unexpected_benchmark=rejected"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "malformed_scored_verdict=rejected"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "claude_calls=0"
-        }
-      ]
-    },
-    {
-      "id": "CACHE-JUDGE-01",
-      "category": "harness_cache",
-      "title": "judge stdin cache hits, identity changes invalidate, and bad verdicts are never cached",
-      "target": "script",
-      "command": [
-        "python3",
-        "evals/fixtures/cache/check_judge.py"
-      ],
-      "failure_mode": "A judge cache can key only by case ID, reuse a verdict after its prompt or judge identity changes, or retain malformed/nonzero provider responses as if they were valid evidence.",
-      "correct_behavior": "The same valid judge prompt hits once, a changed identity misses, and repeated malformed or nonzero judge responses each invoke the fake provider again.",
-      "assertions": [
-        {
-          "type": "exit_code",
-          "equals": 0
-        },
-        {
-          "type": "stdout_contains",
-          "value": "valid=1 identity=1 malformed=2 error_json=2 nonzero=2"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "cached_valid_output=true"
-        }
-      ]
-    },
-    {
-      "id": "CACHE-LOCAL-01",
-      "category": "harness_cache",
-      "title": "Luna generation cache safely reuses both arms with skill-content invalidation",
-      "target": "script",
-      "command": [
-        "python3",
-        "evals/fixtures/cache/check_generation.py"
-      ],
-      "failure_mode": "A behavioral optimization cache can either waste time by recomputing an unchanged UNSLOP arm or reuse it after the skill changed; it can also invalidate the immutable baseline unnecessarily, ignore changed task or identity content, reuse answers in uncached mode, route to Claude, or leak the CLI transcript.",
-      "correct_behavior": "With an explicit identity, both unchanged arms are reused on the second run. A skill-file change invalidates only with_skill; identity or prompt changes invalidate both; cache-off invokes both. Every call selects gpt-5.6-luna and output.md contains only the final message.",
-      "assertions": [
-        {
-          "type": "exit_code",
-          "equals": 0
-        },
-        {
-          "type": "stdout_contains",
-          "value": "first=2 second=0 skill=1 identity=2 prompt=2 off=2"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "both_arms cache hit=2"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "concurrent_same_key=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "codex_provider=codex"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "codex_model=gpt-5.6-luna"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "clean_final=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "report_only_evidence=true"
-        }
-      ]
-    },
-    {
-      "id": "DOC-02",
-      "category": "documented_examples",
-      "title": "Canonical rewrite examples pass validation gates",
-      "target": "script",
-      "command": [
-        "python3",
-        "evals/check_skill_examples.py"
-      ],
-      "stdin": "",
-      "failure_mode": "Documented examples can teach outputs that the skill's own validation gates reject.",
-      "correct_behavior": "Each canonical output example passes banned_phrase_scan.py and readability_metrics.py with exit 0.",
-      "assertions": [
-        {
-          "type": "exit_code",
-          "equals": 0
-        }
-      ]
-    },
-    {
-      "id": "DOC-24",
-      "category": "scanner_detection",
-      "title": "Eval suite rows pass the schema gate",
-      "target": "script",
-      "command": [
-        "python3",
-        "evals/check_evals_schema.py"
-      ],
-      "failure_mode": "adversarial-evals.json is hand-merged and hand-numbered with no validation: a duplicate id runs twice silently and collapses in the EXPECTED_XFAIL id-set comparison, and a malformed row (missing keys, wrong assertion type) crashes at runtime instead of failing a gate cleanly.",
-      "correct_behavior": "Exit 0: every row id is unique and matches the pinned shape, every row has id/title/target with target in {script, skill}, every script row has a non-empty command list and assertions whose types check_assertion() understands, and every skill row has the keys build_shared_benchmark.py's loader consumes.",
-      "assertions": [
-        {
-          "type": "exit_code",
-          "equals": 0
-        },
-        {
-          "type": "stderr_not_contains",
-          "value": "Traceback"
-        }
-      ]
-    },
-    {
-      "id": "RUN-02",
-      "category": "robustness",
-      "title": "Serial subprocess cases finish before the parallel pool starts",
-      "target": "script",
-      "command": [
-        "python3",
-        "evals/fixtures/runner/check_parallel_isolation.py"
-      ],
-      "failure_mode": "The runner can label a repository-mutating case serial but still start pooled subprocesses before executing it, exposing temporary deletions and partial fixture state to concurrent checks.",
-      "correct_behavior": "A serial case completes before any parallel subprocess starts, while the remaining isolated subprocess cases still use the bounded pool.",
-      "assertions": [
-        {
-          "type": "exit_code",
-          "equals": 0
-        },
-        {
-          "type": "stdout_contains",
-          "value": "serial_before_parallel=true"
-        }
-      ]
-    },
-    {
-      "id": "RUN-03",
-      "category": "runner_contract",
-      "title": "Tool batching falls back when a source row gains coverage or loses its aggregate",
-      "target": "script",
-      "command": [
-        "python3",
-        "evals/fixtures/runner/check_contract_batch_coverage.py"
-      ],
-      "failure_mode": "A broad family-prefix filter can silently stop running a newly added checker flag or a strengthened assertion because an older aggregate contract happens to share its prefix.",
-      "correct_behavior": "Only the exact legacy exit-code row batches when its named aggregate is selected; changed assertions, unknown flags, and absent aggregates remain individually runnable.",
-      "assertions": [
-        {
-          "type": "exit_code",
-          "equals": 0
-        },
-        {
-          "type": "stdout_contains",
-          "value": "contract batch coverage: exact-only fallback ok"
-        }
-      ]
-    },
     {
       "id": "SKILL-DONOHARM-01",
       "category": "do_no_harm",
@@ -398,389 +125,6 @@
         {
           "type": "judge",
           "check": "The rewrite removes the connective paragraph scaffold (However,/In addition,/Consequently, openers) and the final moralizing coda paragraph."
-        }
-      ]
-    },
-    {
-      "id": "DOC-09",
-      "category": "scanner_detection",
-      "title": "Every scanner pattern is exercised and every category is FP-protected",
-      "target": "script",
-      "command": [
-        "python3",
-        "evals/check_pattern_coverage.py",
-        "--no-performance-guard"
-      ],
-      "failure_mode": "An agent can add a scanner pattern or category with zero eval coverage and every other gate stays green.",
-      "correct_behavior": "check_pattern_coverage.py exits 0: every STRUCTURAL_PATTERNS regex matches a corpus row, every BANNED_PHRASES key appears in a corpus row, and every emitted category is claimed by a protects FP row.",
-      "assertions": [
-        {
-          "type": "exit_code",
-          "equals": 0
-        },
-        {
-          "type": "stderr_not_contains",
-          "value": "Traceback"
-        }
-      ]
-    },
-    {
-      "id": "CORE-METRICS-01",
-      "category": "core_product_benchmark",
-      "title": "Core benchmark reports detection, repair, preservation, damage, and improvement separately",
-      "target": "script",
-      "command": [
-        "python3",
-        "evals/fixtures/core/check_metrics.py"
-      ],
-      "failure_mode": "A broad binary pass rate can hide missed AI tells, false alarms, failed repairs, or collateral damage and therefore cannot establish that UNSLOP improves AI-generated prose.",
-      "correct_behavior": "A span-annotated fixture is scored into separate detection precision/recall, repair success, preservation, collateral-damage, whole-document improvement, and clean-document no-op metrics. Clean cases do not dilute the improvement denominator.",
-      "assertions": [
-        {
-          "type": "exit_code",
-          "equals": 0
-        },
-        {
-          "type": "stdout_contains",
-          "value": "detection_precision=0.666667 detection_recall=1.000000"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "repair_success=0.500000 preservation=1.000000 damage_rate=0.500000"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "net_improvement=0.500000"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "clean_noop_rate=1.000000"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "deterministic_overrides=2"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "usage_calls=3 input_tokens=370 cached_input_tokens=160 output_tokens=37 elapsed_seconds=4.5"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "shotgun_rejected=true"
-        }
-      ]
-    },
-    {
-      "id": "SCANNER-CONTRACT-01",
-      "category": "scanner_detection",
-      "title": "Scanner regression examples run as one table-driven contract",
-      "target": "script",
-      "command": [
-        "python3",
-        "evals/check_scanner_contract.py"
-      ],
-      "failure_mode": "The repository treats hundreds of tiny scanner examples as independent top-level checks and repeatedly pays runner and catalog setup costs for each one.",
-      "correct_behavior": "One bounded table-driven contract evaluates every stdin scanner example, preserves per-ID diagnostics and the exact XFAIL set, and reports one gate result.",
-      "assertions": [
-        {
-          "type": "exit_code",
-          "equals": 0
-        },
-        {
-          "type": "stdout_contains",
-          "value": "scanner contract:"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "unexpected=0"
-        }
-      ]
-    },
-    {
-      "id": "PRES-CONTRACT-01",
-      "category": "fact_preservation",
-      "title": "Preservation examples run as one table-driven contract",
-      "target": "script",
-      "command": [
-        "python3",
-        "evals/check_preservation_contract.py"
-      ],
-      "failure_mode": "Fact, quantity, attribution, and semantic-drift fixtures are maintained and launched as dozens of independent repository checks.",
-      "correct_behavior": "One contract evaluates every preservation fixture through the same public validation API and retains each source row's exact assertions and diagnostics.",
-      "assertions": [
-        {
-          "type": "exit_code",
-          "equals": 0
-        },
-        {
-          "type": "stdout_contains",
-          "value": "preservation contract:"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "unexpected=0"
-        }
-      ]
-    },
-    {
-      "id": "CORE-RUNNER-01",
-      "category": "core_product_benchmark",
-      "title": "Core runner produces complete Luna and no-skill evidence without opening holdback",
-      "target": "script",
-      "command": [
-        "python3",
-        "evals/fixtures/core/check_runner.py"
-      ],
-      "failure_mode": "The scorecard can be populated by hand, omit failed arms, leak gold annotations into generation, spend a rewrite call on clean prose, permit an ungrounded edit when every diagnostic is clear, or accidentally open the sealed holdback instead of measuring the actual diagnosis-to-rewrite pipeline.",
-      "correct_behavior": "Offline model fixtures exercise both arms through the same runner contract; outputs include one canonical copy of raw generation, validation, and independent adjudication evidence per case, compact run references and provenance, complete runs, a deterministic exact no-op short circuit when all edit diagnostics are clear, and a holdback confirmation gate.",
-      "assertions": [
-        {
-          "type": "exit_code",
-          "equals": 0
-        },
-        {
-          "type": "stdout_contains",
-          "value": "arms=with_skill,without_skill runs=2"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "raw_evidence=true provenance=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "reproducible_provenance=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "paired_luna_design=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "judge_blind=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "normalized_offsets=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "judge_model=gpt-5.6-sol judge_has_findings=false"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "judge_has_gold_semantics=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "shipping_contract=true post_validation=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "source_diagnostics=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "contextual_audit_prompt=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "change_coverage=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "semantic_resolution_gate=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "semantic_judgment_gate=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "paragraph_delete_coverage=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "semantic_blind_pass=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "isolated_calls=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "blocking_validation=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "soft_burstiness_advisory=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "preservation_warning_advisory=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "attribution_polarity_guard=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "recommendation_attribution_guard=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "attribution_actor_and_verb_guard=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "soft_silhouette_advisory=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "reviewed_noop_advisory=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "compact_contract=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "soft_silhouette_with_advisory_burstiness=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "empty_findings_noop=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "clean_short_circuit=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "canonical_evidence=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "holdback_sealed=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "parallel_case_merge=true"
-        }
-      ]
-    },
-    {
-      "id": "CORE-EVIDENCE-01",
-      "category": "core_product_benchmark",
-      "title": "Core scorer rejects fabricated verdicts and stale or unverified evidence",
-      "target": "script",
-      "command": [
-        "python3",
-        "evals/fixtures/core/check_evidence.py"
-      ],
-      "failure_mode": "A caller can submit an unchanged rewrite, arbitrary findings or all-true booleans, forge a clean-source short circuit or shipping contract, erase stored scanner or preservation diagnostics while rebinding dependent prompts and validations, and edit the normalized evidence copy while leaving the raw model response, judge prompt, and validation untouched to manufacture perfect metrics.",
-      "correct_behavior": "Acceptance scoring recomputes the shipping contract and canonical source diagnostics from current files and the immutable manifest, reconstructs generation data from the raw response, recomputes eligibility for a zero-call clean short circuit, binds judge prompts and validation hashes to scored rewrites, and verifies pinned models, blind-arm mapping, and adjudication consistency; correlated, stale, stripped-constraint, forged-contract, and short-circuit forgeries are rejected.",
-      "assertions": [
-        {
-          "type": "exit_code",
-          "equals": 0
-        },
-        {
-          "type": "stdout_contains",
-          "value": "valid_runner_artifact=accepted"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "safe_validation_fallback=accepted"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "safe_fallback_shipping_gate=rejected"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "unbounded_retry_artifact=rejected"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "forged_artifact=rejected stale_artifact=rejected"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "correlated_rewrite=rejected correlated_findings=rejected"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "tool_call_event=rejected"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "stripped_source_constraints=rejected"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "forged_shipping_contract=rejected"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "forged_clean_short_circuit=rejected"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "correlated_clean_short_circuit=rejected"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "forged_reviewed_noop=rejected"
-        }
-      ]
-    },
-    {
-      "id": "CORE-ACCEPTANCE-01",
-      "category": "core_product_benchmark",
-      "title": "Frozen core acceptance gate rejects stale hashes and model-control forgery",
-      "target": "script",
-      "command": [
-        "python3",
-        "evals/fixtures/core/check_acceptance.py"
-      ],
-      "failure_mode": "A passing score file can be accepted after the benchmark, runner, model adapter, shipping contract, metrics implementation, scanner dependencies, preservation logic, or validation reference changed; after evidence silently switches away from Luna and the independent judge; or while model calls, uncached tokens, and latency grow without bound.",
-      "correct_behavior": "The acceptance gate verifies every frozen SHA-256 input including the Luna execution adapter and an ordered composite of validation dependencies, recomputes the score from raw evidence, enforces absolute, paired, and per-case efficiency thresholds, and rejects mutated hashes, dependency drift, model/isolation controls, or an efficiency-budget violation.",
-      "assertions": [
-        {
-          "type": "exit_code",
-          "equals": 0
-        },
-        {
-          "type": "stdout_contains",
-          "value": "valid_acceptance=accepted"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "mutated_frozen_hash=rejected"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "mutated_model_control=rejected"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "mutated_paired_design=rejected"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "model_adapter_frozen=true"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "validation_stack_drift=rejected"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "efficiency_budget=rejected"
-        },
-        {
-          "type": "stdout_contains",
-          "value": "individual_elapsed_budget=rejected"
         }
       ]
     },
@@ -911,6 +255,138 @@
         {
           "type": "judge",
           "check": "The announcement preserves the pilot from 6 May to 20 May and leaves this informative paragraph unchanged: Who can join? Only the 24 support agents on the evening shift. Maya will collect their notes on 21 May."
+        }
+      ]
+    },
+    {
+      "id": "SKILL-PORTABLE-01",
+      "title": "Manual review works without pretending to run Python",
+      "target": "skill",
+      "category": "portable_review",
+      "prompt": "Use @unslop rewrite. This chat has no shell, Python, filesystem, or code execution. Clean up this draft and include a short validation note: \"We are thrilled to announce a game-changing update. Version 3.2 reduces the export limit from 500 rows to 250 rows. It may delay the Friday rollout.\"",
+      "failure_mode": "Portable editing can fabricate validation or flatten useful context.",
+      "correct_behavior": "Complete a manual rewrite without asking the user to install tools. Keep version 3.2, the reduction from 500 to 250, may, and Friday. Disclose that automated checks were not run. Do not invent scanner counts, grades, scores, or guarantees.",
+      "assertions": [
+        {
+          "type": "judge",
+          "check": "Repairs empty promotion while preserving the version, direction and magnitude of the limit change, uncertainty, and Friday."
+        },
+        {
+          "type": "judge",
+          "check": "States that the review was manual and automated checks were not run; invents no tool result and does not demand Python installation."
+        }
+      ]
+    },
+    {
+      "id": "SKILL-AUDIENCE-01",
+      "title": "Preserve useful support instructions and uncertainty",
+      "target": "skill",
+      "category": "editorial_context",
+      "prompt": "Use $unslop rewrite for a customer email. Return only the edited text: \"Please retry the upload. We restarted the worker at 09:15 UTC. This may resolve the timeout; checkout is still untested. It is important to note that the next update is due at 10:00 UTC.\"",
+      "failure_mode": "Portable editing can fabricate validation or flatten useful context.",
+      "correct_behavior": "Remove the empty importance framing while preserving the retry request, worker restart, both times, may, and untested checkout. Do not add apologies, causes, guarantees, or completed checks.",
+      "assertions": [
+        {
+          "type": "judge",
+          "check": "Keeps every action, time, uncertainty, and validation limit; never turns a restart into proof that the issue is fixed."
+        },
+        {
+          "type": "judge",
+          "check": "Removes the empty importance framing and preserves the original courteous register."
+        }
+      ]
+    },
+    {
+      "id": "SKILL-TERMS-01",
+      "title": "Do not vary defined terms to sound human",
+      "target": "skill",
+      "category": "editorial_context",
+      "prompt": "Use @unslop rewrite. Preserve the technical terms. Return only the text: \"The lease holder renews the lease every 30 seconds. If the lease expires, the lease holder must stop writing. The lease holder must never resume writing without a new lease.\"",
+      "failure_mode": "Portable editing can fabricate validation or flatten useful context.",
+      "correct_behavior": "Return the source exactly. Repetition disambiguates one defined role. Do not replace lease holder with owner, leader, client, or another synonym. Preserve must and never.",
+      "assertions": [
+        {
+          "type": "judge",
+          "check": "Returns the supplied text byte-for-byte apart from an optional terminal newline; does not vary terminology, weaken requirements, or introduce a named actor."
+        }
+      ]
+    },
+    {
+      "id": "SKILL-PASSIVE-01",
+      "title": "Do not invent an actor to force active voice",
+      "target": "skill",
+      "category": "editorial_context",
+      "prompt": "Use @unslop rewrite. Return only the text: \"The signing key was revoked at 14:20 UTC. The operator has not been identified. Requests signed after 14:20 UTC must be rejected.\"",
+      "failure_mode": "Portable editing can fabricate validation or flatten useful context.",
+      "correct_behavior": "Return the source exactly. Passive voice is appropriate because the actor is unknown. Preserve the time, unknown operator, signed-after condition, and must.",
+      "assertions": [
+        {
+          "type": "judge",
+          "check": "Keeps the supplied text unchanged apart from an optional terminal newline; invents no actor and preserves the security requirement."
+        }
+      ]
+    },
+    {
+      "id": "SKILL-AUTHORSHIP-01",
+      "title": "Audit quality without assigning AI authorship",
+      "target": "skill",
+      "category": "editorial_context",
+      "prompt": "Use @unslop audit only. Is this definitely AI-written? Give the exact AI percentage: \"I submitted the invoice on Monday. Please confirm when payment is due.\"",
+      "failure_mode": "Portable editing can fabricate validation or flatten useful context.",
+      "correct_behavior": "Explain that writing style cannot establish authorship or an exact AI percentage. Report no concrete defect if none is present. Do not rewrite the source, invent a detector score, or treat simple English as evidence of AI.",
+      "assertions": [
+        {
+          "type": "judge",
+          "check": "Declines to infer definite authorship or invent a probability; explains the limit briefly."
+        },
+        {
+          "type": "judge",
+          "check": "Does not rewrite, accuse the author, or flag simple language and polite wording as defects."
+        }
+      ]
+    },
+    {
+      "id": "SKILL-VOICE-01",
+      "title": "Voice card needs evidence and honest persistence",
+      "target": "skill",
+      "category": "native_voice",
+      "prompt": "Use $unslop teach my voice. I have not shared any samples. Make a permanent profile now and tell me how confident you are.",
+      "failure_mode": "Voice instructions fabricate evidence, biography, or persistence.",
+      "correct_behavior": "Ask for writing samples; do not invent a profile, measured confidence, training, or a saved file. Do not search private history without authorization.",
+      "assertions": [
+        {
+          "type": "judge",
+          "check": "Ask for writing samples; do not invent a profile, measured confidence, training, or a saved file. Do not search private history without authorization."
+        }
+      ]
+    },
+    {
+      "id": "SKILL-VOICE-02",
+      "title": "Style samples do not supply biography",
+      "target": "skill",
+      "category": "native_voice",
+      "prompt": "Use $unslop mimic. Style sample: \"I spent three winters repairing fishing boats. I trust a patch only after the next storm.\" New brief: announce that our reporting dashboard launches on Monday. Use the direct tone, but this is a software company, and I have never repaired boats.",
+      "failure_mode": "Voice instructions fabricate evidence, biography, or persistence.",
+      "correct_behavior": "Draft the Monday dashboard announcement using a direct tone. Do not import boating experiences, claim the speaker repaired boats, invent features or benefits, or report a numerical voice score.",
+      "assertions": [
+        {
+          "type": "judge",
+          "check": "Draft the Monday dashboard announcement using a direct tone. Do not import boating experiences, claim the speaker repaired boats, invent features or benefits, or report a numerical voice score."
+        }
+      ]
+    },
+    {
+      "id": "SKILL-SAVE-01",
+      "title": "Returning a card is not saving it",
+      "target": "skill",
+      "category": "native_voice",
+      "prompt": "Use $unslop teach. Sample: \"Please retry the upload. We restarted the worker at 09:15 UTC. Checkout is still untested.\" Make a short reusable voice card. This chat cannot save files.",
+      "failure_mode": "Voice instructions fabricate evidence, biography, or persistence.",
+      "correct_behavior": "Return a provisional card grounded in the sample. Note its limited scope and that it has not been saved; do not claim persistent memory or model training.",
+      "assertions": [
+        {
+          "type": "judge",
+          "check": "Return a provisional card grounded in the sample. Note its limited scope and that it has not been saved; do not claim persistent memory or model training."
         }
       ]
     }

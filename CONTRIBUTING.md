@@ -1,45 +1,22 @@
-# Contributing to unslop
+# Contributing
 
-Thanks for looking. This repo grows one way: a wild-caught AI-ism turns into a
-red-first eval row, then a PR. There is no other contribution shape — no
-style-only PRs, no "I think this reads better" rewrites without a row behind
-them.
+This fork focuses on native GPT editing and evidence-based voice cards. Keep
+changes scoped to that workflow. See [AGENTS.md](AGENTS.md) for the checks.
 
-## What contributions look like here
+For a scanner change, add a failing example and a literal or domain-valid
+protection to `evals/fixtures/contracts/scanner-examples.json` first. For a
+preservation change, add a before/after case to the preservation table. Update
+`exact_total` without changing existing assertions. Useful contextual pairs live
+in `evals/fixtures/pairs/`.
 
-A contribution starts with a specimen: a real sentence or paragraph, caught in
-the wild, that reads as machine-written. It becomes an eval row that fails
-before the fix and passes after. See [`CLAUDE.md`](CLAUDE.md)'s "Add a New
-Pattern" for the exact recipe the suite enforces.
+For instruction changes, add a realistic behavioral scenario to
+`evals/adversarial-evals.json`, including the expected preservation and routing
+behavior. Include examples that should stay unchanged. Check the result in a GPT
+conversation when possible and distinguish observed results from expectations.
 
-## The fast path
+Run `python3 evals/check.py` and `python3 tools/package_skill.py`. A clean scanner
+result is not proof of good prose. Do not claim an independent writing-quality
+benchmark unless you actually ran and recorded one.
 
-If you're working with an agent that has this skill loaded, say "contribute a
-pattern" or "add this tell" and let it run the flow. The routed steps live in
-[`references/commands/contribute.md`](references/commands/contribute.md).
-
-## The manual path
-
-Running the pipeline yourself, or want the full detail behind each step
-(precheck exit codes, the redaction discipline, the row-diff verification, the
-non-maintainer fork path)? Read [`references/contribute.md`](references/contribute.md).
-
-## Ground rules
-
-- **Eval-first.** The row lands red before any scanner or catalog line
-  changes.
-- **No grandfathering.** `evals/check_pattern_coverage.py` fails the build if
-  a pattern ships without its false-positive protection row.
-- **Prose passes the scanners it ships.** Anything you write here, this file
-  included, has to clear `scripts/banned_phrase_scan.py` and
-  `scripts/structure_scan.py --genre docs` clean.
-- **Green before you ask for review.** Run the commands under
-  [`CLAUDE.md`](CLAUDE.md)'s "Required Checks" and paste the tails into your
-  PR.
-
-## Where to ask
-
-Open an issue with the specimen and where you saw it. Use the
-[New AI-ism](.github/ISSUE_TEMPLATE/new-ai-ism.yml) issue form if you have a
-candidate tell but haven't built the row yet; open a PR directly if you've
-already run the pipeline above.
+Use invented examples or material you are authorized to share. Keep private drafts,
+writing samples, credentials, and taught voice cards out of commits and archives.

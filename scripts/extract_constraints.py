@@ -53,7 +53,7 @@ PATTERNS: dict[str, str] = {
     "magnitude_number": r"\b\d[\d,]*\.?\d*\s+(?:thousand|million|billion|trillion)\b",
 
     # Measurements with units
-    "measurement": r"\d+\.?\d*\s*(?:°C|°F|degrees?\s*(?:C|F|Celsius|Fahrenheit)?|ms|s|sec|min|hr|hour|day|week|month|year|KB|MB|GB|TB|PB|kg|g|lb|oz|m|km|mi|ft|in|cm|mm|px|em|rem|%)\b",
+    "measurement": r"\d+\.?\d*\s*(?:°C|°F|degrees?\s*(?:C|F|Celsius|Fahrenheit)?|milliseconds?|seconds?|minutes?|hours?|days?|weeks?|months?|years?|ms|s|sec|min|hr|KB|MB|GB|TB|PB|kg|g|lb|oz|m|km|mi|ft|in|cm|mm|px|em|rem|%)\b",
 
     # Phone numbers (capture the whole number, before "range" can grab a slice)
     "phone": r"\b(?:\+?1[-.\s]?)?(?:\(\d{3}\)\s*|\d{3}[-.\s])\d{3}[-.\s]\d{4}\b",

@@ -1,49 +1,20 @@
-# /unslop rewrite
+# Unslop rewrite
 
-The default command. Read `references/core-contract.md`; it is authoritative.
-Use two passes: diagnose, then repair confirmed findings and validate.
+Read the core contract. Diagnose the source, then repair only confirmed defects.
 
-Input arrives as an argument, a file path, or stdin. Set `$INPUT` to the source
-and `$OUTPUT` to your rewrite.
+Use the current GPT session for both passes. With execution available, run the
+source through `extract_constraints.py`, `banned_phrase_scan.py`,
+`structure_scan.py`, and `silhouette_scan.py` to catch candidates you missed.
+Use `--genre docs` or `--genre social` only when the source fits. Quoted material
+is protected by default; audit it only when requested.
 
-## Pass 1 — diagnose
+For each candidate, decide whether context confirms a defect or protects the
+wording. A matched phrase alone does not justify an edit. Preserve meaningful
+courtesy and domain terms. Return a clean source exactly.
 
-1. Read the source before scanner output. Identify concrete defects and the
-   information each sentence contributes. Then extract the facts and constraints:
-   ```bash
-   python3 scripts/extract_constraints.py <<< "$INPUT"
-   ```
-2. Scan the source for candidates the reading may have missed:
-   ```bash
-   python3 scripts/banned_phrase_scan.py <<< "$INPUT"
-   python3 scripts/structure_scan.py <<< "$INPUT"
-   python3 scripts/silhouette_scan.py <<< "$INPUT"
-   python3 scripts/readability_metrics.py <<< "$INPUT"
-   ```
-   Pass `--genre docs` or `--genre social` only when the input truly belongs to
-   that genre. Add `banned_phrase_scan.py --include-quoted` only when the user
-   wants quoted examples audited too.
-3. Read the selected preset only for voice. It cannot authorize a finding.
-4. Classify exact spans as confirmed findings or protected source. Do not
-   fact-check, use the current date, or treat missing support as an AI tell.
-   Scanner rows remain candidates until contextual review confirms a defect.
-   If none are confirmed, return the source exactly. Skip reconstruction and
-   validation of unchanged output.
+Make the smallest repair to affected sentences. Check facts and relations before
+polishing rhythm. Use the validation workflow in the core contract. One focused
+correction pass is usually enough; if a conflict cannot be resolved from the
+source, flag it rather than guessing or repeatedly rewriting the whole draft.
 
-## Pass 2 — reconstruct
-
-Apply the core contract. Edit only a sentence containing a confirmed finding,
-make the smallest repair, and copy all other sentences byte-for-byte. If there
-are no findings, return the source exactly. Undo any edit that changes a fact,
-meaning, register, attribution, or protected domain phrase.
-
-## Validate
-
-Run the gate battery and apply the blocking semantics in
-`references/core-contract.md` **Validation**.
-
-Return the cleaned text only, unless the user asked for the strict analysis
-block in SKILL.md **Output Format**.
-
-For multi-agent execution, use `references/pipeline.md`; for orchestrated
-detector packs, use `references/packs/`.
+Return the cleaned text only unless the user requested analysis.

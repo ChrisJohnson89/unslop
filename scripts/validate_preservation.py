@@ -123,7 +123,7 @@ _UNIT_SYNONYMS = {
 
 
 def _measurement_parts(value: str) -> tuple[str, set[str]] | None:
-    m = re.search(r'(\d+\.?\d*)\s*([^\d\s]+|degrees?(?:\s+\w+)?)', value, re.I)
+    m = re.fullmatch(r'(\d+\.?\d*)\s*(.+)', value.strip(), re.I)
     if not m:
         return None
     unit = m.group(2).lower().strip()
@@ -165,6 +165,19 @@ def find_constraint_in_text(constraint: Constraint, text: str) -> bool:
     normalized_value = normalize_value(value)
     normalized_text = normalize_value(text)
 
+    # Measurements need a whole quantity paired with its unit. A substring
+    # (30 MB inside 130 MB) or the same number beside a different unit is loss.
+    if ctype == "measurement":
+        if re.search(r"(?<![\w.])" + re.escape(normalized_value) + r"(?!\w)", normalized_text):
+            return True
+        parts = _measurement_parts(value)
+        if not parts:
+            return False
+        number, units = parts
+        unit_pattern = "|".join(re.escape(unit) for unit in sorted(units, key=len, reverse=True))
+        pattern = r"(?<![\w.])" + re.escape(number.replace(",", "")) + r"\s*(?:" + unit_pattern + r")(?!\w)"
+        return re.search(pattern, text.replace(",", "").lower()) is not None
+
     # Direct match
     if normalized_value in normalized_text:
         return True
@@ -204,16 +217,6 @@ def find_constraint_in_text(constraint: Constraint, text: str) -> bool:
     # Percentage: require an exact numeric match (12% != 120%).
     if ctype == "percentage":
         return _numbers_match_exactly(value, text, r'(\d+\.?\d*)\s*(?:%|percent)')
-
-    if ctype == "measurement":
-        parts = _measurement_parts(value)
-        if not parts:
-            return False
-        number, units = parts
-        clean_text = text.replace(",", "").lower()
-        if not re.search(r'(?<![\d.])' + re.escape(number.replace(",", "")) + r'(?![\d.])', clean_text):
-            return False
-        return any(re.search(r'(?<!\w)' + re.escape(unit) + r'(?!\w)', clean_text) for unit in units)
 
     if ctype == "range":
         return _numbers_match_exactly(value, text, r'(?<![\d.])(\d+\.?\d*)(?![\d.])')

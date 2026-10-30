@@ -1,0 +1,1 @@
+Every lease expires after 300 seconds.

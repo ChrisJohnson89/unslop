@@ -1,0 +1,4 @@
+interface:
+  display_name: "Unslop"
+  short_description: "Clearer writing that keeps your facts and voice"
+  default_prompt: "Use $unslop to edit this draft for clarity while preserving my facts and voice."

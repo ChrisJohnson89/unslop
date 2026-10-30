@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exact_total": 10,
+  "exact_total": 14,
   "examples": [
     {
       "id": "PRES-08",
@@ -143,6 +143,58 @@
           "type": "json",
           "path": "missing_count",
           "gte": 1
+        }
+      ]
+    },
+    {
+      "id": "PRES-DURATION-01",
+      "args": [
+        "evals/fixtures/pres-duration-01_original.txt",
+        "evals/fixtures/pres-duration-01_transformed.txt"
+      ],
+      "assertions": [
+        {
+          "type": "exit_code",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "id": "PRES-DURATION-02",
+      "args": [
+        "evals/fixtures/pres-duration-02_original.txt",
+        "evals/fixtures/pres-duration-02_transformed.txt"
+      ],
+      "assertions": [
+        {
+          "type": "exit_code",
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "id": "PRES-UNIT-PAIR-01",
+      "args": [
+        "evals/fixtures/pres-unit-pair-01_original.txt",
+        "evals/fixtures/pres-unit-pair-01_transformed.txt"
+      ],
+      "assertions": [
+        {
+          "type": "exit_code",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "id": "PRES-UNIT-BOUNDARY-01",
+      "args": [
+        "evals/fixtures/pres-unit-boundary-01_original.txt",
+        "evals/fixtures/pres-unit-boundary-01_transformed.txt"
+      ],
+      "assertions": [
+        {
+          "type": "exit_code",
+          "equals": 1
         }
       ]
     }
