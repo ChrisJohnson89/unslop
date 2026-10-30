@@ -25,9 +25,11 @@ jobs:
         run: python -m pip install ruff==0.17.3 && ruff check scripts tools evals
       - name: Check skill and regressions
         run: python evals/check.py
-      - name: Build standalone skill
-        run: python tools/package_skill.py
+      - name: Build standalone skills
+        run: |
+          python tools/package_skill.py
+          python tools/package_skill.py --skill unslop-write
       - uses: actions/upload-artifact@v4
         with:
           name: unslop-skill-python-${{ matrix.python-version }}
-          path: dist/unslop.skill
+          path: dist/*.skill

@@ -13,7 +13,7 @@ import zipfile
 
 from _check_support import ROOT
 sys.path.insert(0, str(ROOT / "tools"))
-from package_skill import build, runtime_files  # noqa: E402
+from package_skill import SKILLS, build, runtime_files  # noqa: E402
 
 
 class SkillDistribution(unittest.TestCase):
@@ -93,6 +93,44 @@ class SkillDistribution(unittest.TestCase):
             with self.assertRaises(ValueError):
                 build(root / 'out.skill', root)
 
+    def test_drafting_skill_installs_independently(self):
+        root = SKILLS['unslop-write']
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            output = base / 'drafting.skill'
+            proc = subprocess.run(
+                [sys.executable, str(ROOT / 'tools/package_skill.py'),
+                 '--skill', 'unslop-write', '--output', str(output)],
+                cwd=base, text=True, capture_output=True, timeout=15,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            other = build(base / 'second.skill', root, 'unslop-write')
+            self.assertEqual(output.read_bytes(), other.read_bytes())
+            with zipfile.ZipFile(output) as archive:
+                self.assertEqual(set(archive.namelist()), {
+                    'unslop-write/' + p.relative_to(root).as_posix()
+                    for p in runtime_files(root)
+                })
+                archive.extractall(base / 'installed')
+            skill = base / 'installed/unslop-write'
+            self.assertRegex((skill / 'SKILL.md').read_text(), r'\A---\nname: unslop-write\n')
+            self.assertFalse((skill / 'scripts').exists())
+            self.assertFalse((skill.parent / 'unslop').exists())
+            for path in skill.rglob('*.md'):
+                for link in re.findall(r'\]\(([^)]+)\)', path.read_text()):
+                    if '://' in link or link.startswith('#'):
+                        continue
+                    target = (path.parent / link.split('#')[0]).resolve()
+                    self.assertIn(skill.resolve(), target.parents)
+                    self.assertTrue(target.is_file(), (path, link))
+
+    def test_package_rejects_unsafe_skill_name(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / 'out.skill'
+            with self.assertRaises(ValueError):
+                build(output, skill_name='../outside')
+            self.assertFalse(output.exists())
+
     def test_output_cannot_replace_source(self):
         with self.assertRaises(ValueError):
             build(ROOT / 'SKILL.md')
@@ -116,6 +154,7 @@ class SkillDistribution(unittest.TestCase):
         self.assertGreaterEqual(len(ids), 18)
         for case in cases:
             self.assertEqual(case['target'], 'skill')
+            self.assertIn(case.get('skill_name', 'unslop'), SKILLS)
             self.assertTrue(case['prompt'])
             self.assertTrue(case['correct_behavior'])
             self.assertTrue(case['assertions'])

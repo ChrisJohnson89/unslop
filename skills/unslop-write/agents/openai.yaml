@@ -1,0 +1,6 @@
+interface:
+  display_name: "Unslop Write"
+  short_description: "Draft messages naturally in your writing style"
+  default_prompt: "Use $unslop-write to draft this reply in my writing style, keeping the facts and uncertainty intact."
+policy:
+  allow_implicit_invocation: true

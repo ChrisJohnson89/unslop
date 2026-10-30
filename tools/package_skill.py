@@ -7,6 +7,7 @@ from pathlib import Path
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
+SKILLS = {"unslop": ROOT, "unslop-write": ROOT / "skills" / "unslop-write"}
 RUNTIME_DIRS = {"agents", "references", "scripts", "assets"}
 SUFFIXES = {".md", ".py", ".json", ".yaml"}
 
@@ -31,7 +32,9 @@ def runtime_files(root: Path = ROOT) -> list[Path]:
     return sorted(paths)
 
 
-def build(output: Path, root: Path = ROOT) -> Path:
+def build(output: Path, root: Path = ROOT, skill_name: str = "unslop") -> Path:
+    if skill_name not in SKILLS:
+        raise ValueError(f"Unknown skill: {skill_name}")
     files = runtime_files(root)
     if output.is_symlink():
         raise ValueError(f"Refusing symlink output: {output}")
@@ -41,7 +44,7 @@ def build(output: Path, root: Path = ROOT) -> Path:
     output.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for path in files:
-            name = "unslop/" + path.relative_to(root).as_posix()
+            name = skill_name + "/" + path.relative_to(root).as_posix()
             info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o100644 << 16
@@ -51,13 +54,15 @@ def build(output: Path, root: Path = ROOT) -> Path:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=ROOT / "dist" / "unslop.skill")
+    parser.add_argument("--skill", choices=sorted(SKILLS), default="unslop")
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
+    root = SKILLS[args.skill]
     try:
-        output = build(args.output)
+        output = build(args.output or ROOT / "dist" / f"{args.skill}.skill", root, args.skill)
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
-    print(f"Built {output}: {len(runtime_files())} runtime files, {output.stat().st_size} bytes")
+    print(f"Built {output}: {len(runtime_files(root))} runtime files, {output.stat().st_size} bytes")
     return 0
 
 
